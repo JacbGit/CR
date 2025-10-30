@@ -13,4 +13,14 @@ export class UsersService {
     findAll(): Promise<User[]>{
         return this.userRepository.find();
     }
+
+    async findByUsername(username: string): Promise<User | null> {
+        return this.userRepository.findOne({ where: { Username: username } });
+    }
+
+    async create(userData: Partial<User>): Promise<User> {
+        const newUser = this.userRepository.create(userData);
+        return this.userRepository.save(newUser);
+    }
+
 }
