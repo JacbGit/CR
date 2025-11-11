@@ -11,7 +11,7 @@ import { JwtStrategy } from './jwt.strategy';
         forwardRef(() => UsersModule),  // Wrap UsersModule with forwardRef to break circular dependency
         PassportModule,
         JwtModule.register({
-            secret: 'cambiar_por_variable_env',
+            secret: 'mi_secreto_super_seguro',
             signOptions: { expiresIn: '1h' },
         }),
     ],
