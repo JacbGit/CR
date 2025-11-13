@@ -4,7 +4,8 @@ import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
-
+import { AccountsModule } from './accounts/account.module';
+import { MovementsModule } from './movements/movement.module';
 
 @Module({
   imports: [
@@ -22,7 +23,7 @@ import { AuthModule } from './auth/auth.module';
         enableArithAbort: true,
       }
     }),
-    UsersModule, AuthModule
+    UsersModule, AuthModule, AccountsModule, MovementsModule
   ],
   controllers: [AppController],
   providers: [AppService],
