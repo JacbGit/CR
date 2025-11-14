@@ -26,6 +26,6 @@ export class User {
     @Column()
     UserType: number;
 
-    @CreateDateColumn({type: 'datetime'})
+    @CreateDateColumn({type: 'timestamp'})
     CreatedAt: Date;
 }

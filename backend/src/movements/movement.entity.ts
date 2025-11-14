@@ -15,7 +15,7 @@ export class Movement {
     @Column({ type: 'decimal', precision: 10, scale: 2 })
     Balance: number;
 
-    @CreateDateColumn({ type: 'datetime' })
+    @CreateDateColumn({ type: 'timestamp' })
     RegisteredAt: Date;
 
     @ManyToOne(() => Account, account => account.movements)
