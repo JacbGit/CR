@@ -11,7 +11,7 @@ export class User {
     @Column({length: 63})
     Surname: string;
 
-    @Column({length: 63})
+    @Column({length: 63, unique: true })
     Username: string;
 
     @Column({length: 63})
@@ -26,6 +26,6 @@ export class User {
     @Column()
     UserType: number;
 
-    @CreateDateColumn({type: 'datetime'})
+    @CreateDateColumn({type: 'timestamp'})
     CreatedAt: Date;
 }
