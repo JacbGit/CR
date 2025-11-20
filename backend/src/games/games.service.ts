@@ -6,12 +6,14 @@ import { Transaction, TransactionType, TransactionStatus } from '../transactions
 import { GameHistory, GameType, GameResult } from '../game-history/game-history.entity';
 import {
   PlaceBetDto,
-  RoulettePlayDto,
   DicePlayDto,
   SlotsPlayDto,
   PokerPlayDto,
   BlackjackActionDto,
 } from './dto/game.dto';
+import { RoulettePlayDto } from './roulette/roulette.dto';
+import { RouletteLogic } from './roulette/roulette.logic';
+import { RED_NUMBERS, BLACK_NUMBERS } from './roulette/roulette.constants';
 
 @Injectable()
 export class GamesService {
@@ -30,43 +32,31 @@ export class GamesService {
     return await this.dataSource.transaction(async (manager) => {
       const user = await manager.findOne(User, { where: { id: userId } });
       
-      if (user.balance < playDto.amount) {
+      // Validar apuestas
+      const validation = RouletteLogic.validateBets(playDto.bets);
+      if (!validation.valid) {
+        throw new BadRequestException(validation.error);
+      }
+
+      // Calcular total apostado
+      const totalBet = RouletteLogic.calculateTotalBet(playDto.bets);
+      
+      if (user.balance < totalBet) {
         throw new BadRequestException('Saldo insuficiente');
       }
 
-      // Girar la ruleta (0-36)
-      const winningNumber = Math.floor(Math.random() * 37);
-      const isRed = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36].includes(winningNumber);
-      const isBlack = winningNumber !== 0 && !isRed;
-      const isEven = winningNumber !== 0 && winningNumber % 2 === 0;
-      const isOdd = winningNumber !== 0 && winningNumber % 2 !== 0;
+      // Girar la ruleta
+      const winningNumber = RouletteLogic.spin();
+      
+      // Calcular ganancias
+      const { totalWinnings, winningBets } = RouletteLogic.calculateWinnings(
+        winningNumber,
+        playDto.bets
+      );
 
-      let multiplier = 0;
-      let won = false;
-
-      // Determinar si ganó según el tipo de apuesta
-      switch (playDto.betType) {
-        case 'number':
-          won = winningNumber === playDto.value;
-          multiplier = won ? 35 : 0;
-          break;
-        case 'color':
-          won = (playDto.value === 'red' && isRed) || (playDto.value === 'black' && isBlack);
-          multiplier = won ? 1 : 0;
-          break;
-        case 'odd-even':
-          won = (playDto.value === 'odd' && isOdd) || (playDto.value === 'even' && isEven);
-          multiplier = won ? 1 : 0;
-          break;
-        case 'high-low':
-          won = (playDto.value === 'high' && winningNumber >= 19) || (playDto.value === 'low' && winningNumber <= 18 && winningNumber !== 0);
-          multiplier = won ? 1 : 0;
-          break;
-      }
-
-      const winAmount = won ? playDto.amount * multiplier : 0;
       const balanceBefore = parseFloat(user.balance.toString());
-      const balanceAfter = balanceBefore - playDto.amount + winAmount;
+      const balanceAfter = balanceBefore - totalBet + totalWinnings;
+      const won = totalWinnings > 0;
 
       user.balance = balanceAfter;
       await manager.save(user);
@@ -75,21 +65,21 @@ export class GamesService {
       const betTransaction = manager.create(Transaction, {
         userId,
         type: TransactionType.BET,
-        amount: -playDto.amount,
+        amount: -totalBet,
         balanceBefore,
-        balanceAfter: balanceBefore - playDto.amount,
+        balanceAfter: balanceBefore - totalBet,
         status: TransactionStatus.COMPLETED,
         gameType: GameType.ROULETTE,
       });
       await manager.save(betTransaction);
 
       // Si ganó, registrar transacción de ganancia
-      if (won && winAmount > 0) {
+      if (won && totalWinnings > 0) {
         const winTransaction = manager.create(Transaction, {
           userId,
           type: TransactionType.WIN,
-          amount: winAmount,
-          balanceBefore: balanceBefore - playDto.amount,
+          amount: totalWinnings,
+          balanceBefore: balanceBefore - totalBet,
           balanceAfter,
           status: TransactionStatus.COMPLETED,
           gameType: GameType.ROULETTE,
@@ -101,17 +91,17 @@ export class GamesService {
       const gameHistory = manager.create(GameHistory, {
         userId,
         gameType: GameType.ROULETTE,
-        betAmount: playDto.amount,
-        winAmount,
+        betAmount: totalBet,
+        winAmount: totalWinnings,
         result: won ? GameResult.WIN : GameResult.LOSS,
         balanceBefore,
         balanceAfter,
         gameData: {
           winningNumber,
-          betType: playDto.betType,
-          betValue: playDto.value,
-          isRed,
-          isBlack,
+          isRed: RED_NUMBERS.includes(winningNumber),
+          isBlack: BLACK_NUMBERS.includes(winningNumber),
+          bets: playDto.bets,
+          winningBets,
         },
       });
       await manager.save(gameHistory);
@@ -120,13 +110,12 @@ export class GamesService {
         result: {
           won,
           winningNumber,
-          isRed,
-          isBlack,
-          betType: playDto.betType,
-          betValue: playDto.value,
+          isRed: RED_NUMBERS.includes(winningNumber),
+          isBlack: BLACK_NUMBERS.includes(winningNumber),
+          winningBets,
         },
-        betAmount: playDto.amount,
-        winAmount,
+        totalBet,
+        totalWinnings,
         newBalance: balanceAfter,
       };
     });
@@ -146,8 +135,139 @@ export class GamesService {
       const dice2 = Math.floor(Math.random() * 6) + 1;
       const total = dice1 + dice2;
 
-      const won = total === playDto.prediction;
-      const multiplier = won ? 6 : 0; // Pago 6:1 por adivinar exacto
+      // Lógica de Craps con múltiples tipos de apuestas
+      let won = false;
+      let winType = '';
+      let multiplier = 1; // Por defecto paga 1:1
+
+      const betType = playDto.betType || 'pass';
+
+      switch (betType) {
+        case 'pass':
+          // PASS LINE: Gana con 7 u 11, pierde con 2, 3 o 12 (craps)
+          if (total === 7 || total === 11) {
+            won = true;
+            winType = 'natural';
+            multiplier = 1;
+          } else if (total === 2 || total === 3 || total === 12) {
+            won = false;
+            winType = 'craps';
+          } else {
+            winType = 'point_established';
+            won = Math.random() > 0.48;
+            multiplier = 1;
+          }
+          break;
+
+        case 'dont-pass':
+          // DON'T PASS: Pierde con 7 u 11, gana con 2 o 3, empata con 12
+          if (total === 7 || total === 11) {
+            won = false;
+            winType = 'seven_out';
+          } else if (total === 2 || total === 3) {
+            won = true;
+            winType = 'craps';
+            multiplier = 1;
+          } else if (total === 12) {
+            won = false;
+            winType = 'push'; // Empate, no gana ni pierde
+            multiplier = 0;
+          } else {
+            winType = 'point_established';
+            won = Math.random() > 0.52;
+            multiplier = 1;
+          }
+          break;
+
+        case 'come':
+          // COME: Similar a PASS pero solo después de establecer punto
+          if (total === 7 || total === 11) {
+            won = true;
+            winType = 'natural';
+            multiplier = 1;
+          } else if (total === 2 || total === 3 || total === 12) {
+            won = false;
+            winType = 'craps';
+          } else {
+            won = Math.random() > 0.48;
+            winType = 'come_point';
+            multiplier = 1;
+          }
+          break;
+
+        case 'dont-come':
+          // DON'T COME: Opuesto a COME
+          if (total === 7 || total === 11) {
+            won = false;
+            winType = 'seven_out';
+          } else if (total === 2 || total === 3) {
+            won = true;
+            winType = 'craps';
+            multiplier = 1;
+          } else if (total === 12) {
+            won = false;
+            winType = 'push';
+            multiplier = 0;
+          } else {
+            won = Math.random() > 0.52;
+            winType = 'dont_come_point';
+            multiplier = 1;
+          }
+          break;
+
+        case 'field':
+          // FIELD: Apuesta a 2, 3, 4, 9, 10, 11 o 12
+          if (total === 2 || total === 12) {
+            won = true;
+            winType = 'field_double';
+            multiplier = 2; // Paga 2:1
+          } else if (total === 3 || total === 4 || total === 9 || total === 10 || total === 11) {
+            won = true;
+            winType = 'field';
+            multiplier = 1;
+          } else {
+            won = false;
+            winType = 'no_field';
+          }
+          break;
+
+        case 'any-craps':
+          // ANY CRAPS: Apuesta a 2, 3 o 12
+          if (total === 2 || total === 3 || total === 12) {
+            won = true;
+            winType = 'craps';
+            multiplier = 7; // Paga 7:1
+          } else {
+            won = false;
+            winType = 'no_craps';
+          }
+          break;
+
+        case 'any-seven':
+          // ANY SEVEN: Apuesta a que salga 7
+          if (total === 7) {
+            won = true;
+            winType = 'seven';
+            multiplier = 4; // Paga 4:1
+          } else {
+            won = false;
+            winType = 'no_seven';
+          }
+          break;
+
+        default:
+          // Pass por defecto
+          if (total === 7 || total === 11) {
+            won = true;
+            multiplier = 1;
+          } else if (total === 2 || total === 3 || total === 12) {
+            won = false;
+          } else {
+            won = Math.random() > 0.48;
+            multiplier = 1;
+          }
+      }
+
       const winAmount = won ? playDto.amount * multiplier : 0;
 
       const balanceBefore = parseFloat(user.balance.toString());
@@ -194,7 +314,9 @@ export class GamesService {
           dice1,
           dice2,
           total,
-          prediction: playDto.prediction,
+          betType,
+          winType,
+          multiplier,
         },
       });
       await manager.save(gameHistory);
@@ -205,7 +327,9 @@ export class GamesService {
           dice1,
           dice2,
           total,
-          prediction: playDto.prediction,
+          betType,
+          winType,
+          multiplier,
         },
         betAmount: playDto.amount,
         winAmount,
@@ -223,7 +347,8 @@ export class GamesService {
         throw new BadRequestException('Saldo insuficiente');
       }
 
-      const symbols = ['🍒', '🍋', '🍊', '🍉', '⭐', '💎', '7️⃣'];
+      // Símbolos con probabilidades balanceadas
+      const symbols = ['CHERRY', 'CHERRY', 'LEMON', 'LEMON', 'ORANGE', 'ORANGE', 'GRAPE', 'STAR', 'DIAMOND', 'SEVEN'];
       const reels = [
         symbols[Math.floor(Math.random() * symbols.length)],
         symbols[Math.floor(Math.random() * symbols.length)],
@@ -233,17 +358,28 @@ export class GamesService {
       // Verificar combinaciones ganadoras
       let multiplier = 0;
       let won = false;
+      let winType = '';
 
       if (reels[0] === reels[1] && reels[1] === reels[2]) {
-        // Tres iguales
+        // Tres iguales - JACKPOT
         won = true;
-        if (reels[0] === '7️⃣') multiplier = 50;
-        else if (reels[0] === '💎') multiplier = 30;
-        else if (reels[0] === '⭐') multiplier = 20;
-        else multiplier = 10;
-      } else if (reels[0] === reels[1] || reels[1] === reels[2]) {
+        winType = 'triple';
+        if (reels[0] === 'SEVEN') {
+          multiplier = 100; // Jackpot máximo
+          winType = 'jackpot';
+        } else if (reels[0] === 'DIAMOND') {
+          multiplier = 50;
+        } else if (reels[0] === 'STAR') {
+          multiplier = 25;
+        } else if (reels[0] === 'GRAPE') {
+          multiplier = 15;
+        } else {
+          multiplier = 10; // Frutas comunes
+        }
+      } else if (reels[0] === reels[1] || reels[1] === reels[2] || reels[0] === reels[2]) {
         // Dos iguales
         won = true;
+        winType = 'double';
         multiplier = 2;
       }
 
@@ -289,8 +425,9 @@ export class GamesService {
         balanceBefore,
         balanceAfter,
         gameData: {
-          reels,
+          symbols: reels,
           multiplier,
+          winType,
         },
       });
       await manager.save(gameHistory);
@@ -298,8 +435,9 @@ export class GamesService {
       return {
         result: {
           won,
-          reels,
+          symbols: reels,
           multiplier,
+          winType,
         },
         betAmount: playDto.amount,
         winAmount,

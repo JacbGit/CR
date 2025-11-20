@@ -1,6 +1,8 @@
 import {
   Controller,
   Get,
+  Post,
+  Body,
   Param,
   UseGuards,
   Request,
@@ -22,6 +24,11 @@ export class TransactionsController {
   @Get('summary')
   async getSummary(@Request() req) {
     return await this.transactionsService.getTransactionsSummary(req.user.userId);
+  }
+
+  @Post('deposit')
+  async deposit(@Request() req, @Body() body: { amount: number }) {
+    return await this.transactionsService.deposit(req.user.userId, body.amount);
   }
 
   @Get(':id')

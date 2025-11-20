@@ -9,12 +9,12 @@ import {
 import { GamesService } from './games.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import {
-  RoulettePlayDto,
   DicePlayDto,
   SlotsPlayDto,
   PokerPlayDto,
   BlackjackActionDto,
 } from './dto/game.dto';
+import { RoulettePlayDto } from './roulette/roulette.dto';
 
 @Controller('games')
 @UseGuards(JwtAuthGuard)
