@@ -1,0 +1,21 @@
+import { IsNumber, IsString, Min, IsIn } from 'class-validator';
+
+export class PlayRouletteDto {
+  @IsNumber()
+  @Min(0.01)
+  betAmount: number;
+
+  @IsString()
+  @IsIn([
+    // Números individuales 0-36
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
+    '11', '12', '13', '14', '15', '16', '17', '18', '19', '20',
+    '21', '22', '23', '24', '25', '26', '27', '28', '29', '30',
+    '31', '32', '33', '34', '35', '36',
+    // Apuestas especiales
+    'red', 'black', 'even', 'odd', 'low', 'high',
+    '1st12', '2nd12', '3rd12', // Docenas
+    'col1', 'col2', 'col3' // Columnas
+  ])
+  betType: string;
+}

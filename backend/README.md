@@ -42,6 +42,8 @@ $ npm run start:dev
 
 # production mode
 $ npm run start:prod
+
+//npm install class-validator class-transformer
 ```
 
 ## Run tests
