@@ -154,7 +154,7 @@ export class GamesService {
             winType = 'craps';
           } else {
             winType = 'point_established';
-            won = Math.random() > 0.48;
+            won = Math.random() > 0.7;
             multiplier = 1;
           }
           break;
@@ -174,7 +174,7 @@ export class GamesService {
             multiplier = 0;
           } else {
             winType = 'point_established';
-            won = Math.random() > 0.52;
+            won = Math.random() > 0.7;
             multiplier = 1;
           }
           break;
@@ -189,7 +189,7 @@ export class GamesService {
             won = false;
             winType = 'craps';
           } else {
-            won = Math.random() > 0.48;
+            won = Math.random() > 0.7;
             winType = 'come_point';
             multiplier = 1;
           }
@@ -209,7 +209,7 @@ export class GamesService {
             winType = 'push';
             multiplier = 0;
           } else {
-            won = Math.random() > 0.52;
+            won = Math.random() > 0.7;
             winType = 'dont_come_point';
             multiplier = 1;
           }
@@ -263,12 +263,12 @@ export class GamesService {
           } else if (total === 2 || total === 3 || total === 12) {
             won = false;
           } else {
-            won = Math.random() > 0.48;
+            won = Math.random() > 0.7;
             multiplier = 1;
           }
       }
 
-      const winAmount = won ? playDto.amount * multiplier : 0;
+      const winAmount = won ? playDto.amount * (multiplier + 1) : 0;
 
       const balanceBefore = parseFloat(user.balance.toString());
       const balanceAfter = balanceBefore - playDto.amount + winAmount;

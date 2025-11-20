@@ -70,7 +70,7 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Usuario */}
           <div>
-            <label className="block text-yellow-300 font-black mb-2 drop-shadow-lg text-sm">👤 USUARIO</label>
+            <label className="block text-yellow-300 font-black mb-2 drop-shadow-lg text-sm">USUARIO</label>
             <div className="relative">
               <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-lg blur opacity-30"></div>
               <input
@@ -87,7 +87,7 @@ export default function RegisterPage() {
 
           {/* Email */}
           <div>
-            <label className="block text-yellow-300 font-black mb-2 drop-shadow-lg text-sm">📧 EMAIL</label>
+            <label className="block text-yellow-300 font-black mb-2 drop-shadow-lg text-sm">EMAIL</label>
             <div className="relative">
               <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-lg blur opacity-30"></div>
               <input
@@ -105,7 +105,7 @@ export default function RegisterPage() {
           {/* Nombre y Apellido */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-yellow-300 font-black mb-2 drop-shadow-lg text-xs">📝 NOMBRE</label>
+              <label className="block text-yellow-300 font-black mb-2 drop-shadow-lg text-xs">NOMBRE</label>
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-lg blur opacity-30"></div>
                 <input
@@ -120,7 +120,7 @@ export default function RegisterPage() {
               </div>
             </div>
             <div>
-              <label className="block text-yellow-300 font-black mb-2 drop-shadow-lg text-xs">🏷️ APELLIDO</label>
+              <label className="block text-yellow-300 font-black mb-2 drop-shadow-lg text-xs">APELLIDO</label>
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-lg blur opacity-30"></div>
                 <input
@@ -138,7 +138,7 @@ export default function RegisterPage() {
 
           {/* Contraseña */}
           <div>
-            <label className="block text-yellow-300 font-black mb-2 drop-shadow-lg text-sm">🔐 CONTRASEÑA</label>
+            <label className="block text-yellow-300 font-black mb-2 drop-shadow-lg text-sm">CONTRASEÑA</label>
             <div className="relative">
               <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-lg blur opacity-30"></div>
               <input
@@ -163,7 +163,7 @@ export default function RegisterPage() {
             }`}
             style={{textShadow: '1px 1px 2px rgba(0,0,0,0.3)'}}
           >
-            {loading ? '⏳ REGISTRANDO...' : '🎮 CREAR CUENTA'}
+            {loading ? '⏳ REGISTRANDO...' : 'CREAR CUENTA'}
           </button>
         </form>
 
@@ -184,7 +184,7 @@ export default function RegisterPage() {
             className="w-full block bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black py-3 rounded-lg transition-all duration-200 border-2 border-purple-400 transform hover:scale-105 active:scale-95"
             style={{textShadow: '1px 1px 2px rgba(0,0,0,0.3)'}}
           >
-            🔑 INICIA SESIÓN
+            INICIA SESIÓN
           </Link>
         </div>
 

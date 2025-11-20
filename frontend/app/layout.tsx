@@ -26,10 +26,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={`${inter.className} ${playfair.variable} ${cinzel.variable}`}>
+      <body className={`${inter.className} ${playfair.variable} ${cinzel.variable} bg-black min-h-screen`}>
         <AuthProvider>
           <Header />
-          <main>
+          <main className="min-h-screen">
             {children}
           </main>
         </AuthProvider>

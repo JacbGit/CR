@@ -68,6 +68,16 @@ export class RouletteLogic {
       return winningNumber > 0 && winningNumber % 3 === 0;
     }
 
+    // Apuestas múltiples (Split, Street, Corner, Line)
+    // Formato esperado: "1-2", "1-2-3", "1-2-4-5", etc.
+    if (betKey.includes('-')) {
+      const numbers = betKey.split('-').map(Number);
+      // Verificar que todos sean números válidos
+      if (numbers.every(n => !isNaN(n))) {
+        return numbers.includes(winningNumber);
+      }
+    }
+
     return false;
   }
 
@@ -78,6 +88,22 @@ export class RouletteLogic {
     // Apuesta directa al número
     if (!isNaN(Number(betKey))) {
       return 35;
+    }
+
+    // Apuestas múltiples (Split, Street, Corner, Line)
+    if (betKey.includes('-')) {
+      const numbers = betKey.split('-').map(Number);
+      if (numbers.every(n => !isNaN(n))) {
+        const count = numbers.length;
+        if (count > 0) {
+          // Fórmula estándar: (36 / n) - 1
+          // 2 nums -> 17
+          // 3 nums -> 11
+          // 4 nums -> 8
+          // 6 nums -> 5
+          return Math.floor(36 / count) - 1;
+        }
+      }
     }
 
     // Buscar en los tipos de apuesta conocidos
@@ -139,7 +165,17 @@ export class RouletteLogic {
       const isNumber = !isNaN(Number(bet.betKey));
       const isValidBetType = Object.values(RouletteBetType).includes(bet.betKey as RouletteBetType);
       
-      if (!isNumber && !isValidBetType) {
+      // Validar apuestas múltiples (Split, Street, etc.)
+      let isMultiBet = false;
+      if (bet.betKey.includes('-')) {
+        const parts = bet.betKey.split('-');
+        // Verificar que todas las partes sean números
+        if (parts.every(p => !isNaN(Number(p)))) {
+          isMultiBet = true;
+        }
+      }
+
+      if (!isNumber && !isValidBetType && !isMultiBet) {
         return { valid: false, error: `Tipo de apuesta inválido: ${bet.betKey}` };
       }
 

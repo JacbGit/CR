@@ -2,257 +2,221 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { gamesService } from '@/lib/gamesService';
 import { useAuth } from '@/context/AuthContext';
-import { soundManager } from '@/lib/soundManager';
-import { RouletteWheel } from './components/RouletteWheel';
-import { BettingTable } from './components/BettingTable';
-import { CHIP_VALUES, RED_NUMBERS } from './utils/constants';
-import { calculateWinnings, getTotalBet } from './utils/gameLogic';
 
-export default function EuropeanRoulette() {
-  const { user, loading, refreshUser } = useAuth();
+// Import from the local adapted library
+import { 
+  RouletteTable, 
+  RouletteWheel, 
+  ChipList, 
+  useRoulette 
+} from './index';
+
+// Chip images
+const chipsMap = {
+  '1': '/images/chips/white-chip.png',
+  '10': '/images/chips/blue-chip.png',
+  '100': '/images/chips/black-chip.png',
+  '500': '/images/chips/cyan-chip.png',
+};
+
+const BET_MAPPING: Record<string, string> = {
+  '1ST_DOZEN': 'first12',
+  '2ND_DOZEN': 'second12',
+  '3RD_DOZEN': 'third12',
+  '1ST_COLUMN': 'column1',
+  '2ND_COLUMN': 'column2',
+  '3RD_COLUMN': 'column3',
+  '19_TO_36': 'second18',
+  '1_TO_18': 'first18',
+  'ODD': 'odd',
+  'EVEN': 'even',
+  'RED': 'red',
+  'BLACK': 'black',
+};
+
+export default function RoulettePage() {
   const router = useRouter();
+  const { user, refreshUser } = useAuth();
+  const { bets, total, onBet, clearBets } = useRoulette();
   
+  const [selectedChip, setSelectedChip] = useState<string>('1');
+  const [winningBet, setWinningBet] = useState<string>('-1');
+  const [wheelStart, setWheelStart] = useState(false);
   const [balance, setBalance] = useState(0);
-  const [bets, setBets] = useState<Map<string, number>>(new Map());
-  const [selectedChip, setSelectedChip] = useState(5);
-  const [isSpinning, setIsSpinning] = useState(false);
-  const [winningNumber, setWinningNumber] = useState<number | null>(null);
-  const [lastWin, setLastWin] = useState(0);
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [showHistory, setShowHistory] = useState<number[]>([]);
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login');
-    } else if (user) {
-      setBalance(typeof user.balance === 'number' ? user.balance : parseFloat(user.balance || '0'));
+    if (user) {
+      setBalance(Number(user.balance));
     }
-  }, [user, loading, router]);
+  }, [user]);
 
-  const placeBet = (betKey: string, amount: number) => {
-    if (isSpinning) {
-      setMessage('Espera a que termine el giro');
+  const handleSpin = async () => {
+    if (total === 0) {
+      setMessage('¡Por favor realiza una apuesta primero!');
       return;
     }
-    
-    if (balance < amount) {
-      setMessage('Saldo insuficiente');
+    if (total > balance) {
+      setMessage('¡Fondos insuficientes!');
       return;
     }
+    if (wheelStart) return;
 
-    const newBets = new Map(bets);
-    const currentBet = newBets.get(betKey) || 0;
-    newBets.set(betKey, currentBet + amount);
-    setBets(newBets);
-    setBalance(balance - amount);
-    setMessage('');
-  };
-
-  const clearBets = () => {
-    if (isSpinning) return;
-    
-    const totalRefund = getTotalBet(bets);
-    setBalance(balance + totalRefund);
-    setBets(new Map());
-    setLastWin(0);
-    setMessage('Apuestas eliminadas');
-  };
-
-  const spin = () => {
-    if (isSpinning) return;
-    if (getTotalBet(bets) === 0) {
-      setMessage('Coloca una apuesta primero');
-      return;
-    }
-
-    setIsSpinning(true);
     setMessage('');
     
-    soundManager.initializeAudio();
-    soundManager.playRouletteSpinning();
-    
-    const randomNumber = Math.floor(Math.random() * 37);
-    setWinningNumber(randomNumber);
-  };
+    try {
+      // Prepare payload for API
+      // Convert bets object to array expected by backend
+      const betArray: { betKey: string; amount: number }[] = [];
 
-  const onSpinEnd = async () => {
-    if (winningNumber !== null) {
-      const winnings = calculateWinnings(winningNumber, bets);
-      const newBalance = balance + winnings;
-      
-      setBalance(newBalance);
-      setLastWin(winnings);
-      
-      if (winnings > 0) {
-        setMessage(`¡Ganaste $${winnings}! Número: ${winningNumber}`);
-        soundManager.playJackpotSound();
-        soundManager.playMoneyFall();
-      } else {
-        setMessage(`Número ganador: ${winningNumber}. Mejor suerte la próxima vez`);
-        soundManager.playLosSound();
+      for (const [id, bet] of Object.entries(bets)) {
+        let betKey = id;
+        
+        // Check if it's a mapped bet type
+        if (BET_MAPPING[id]) {
+          betKey = BET_MAPPING[id];
+        } else if (isNaN(Number(id)) && !id.includes('-')) {
+          // If it's not a number, not in our mapping, and not a hyphenated multi-bet
+          console.warn(`Unsupported bet type: ${id}`);
+          setMessage(`Tipo de apuesta no soportado: ${id}. Solo se soportan números individuales, splits y apuestas externas.`);
+          return;
+        }
+        // If it is a number (e.g. "0", "36") or a multi-bet (e.g. "1-2"), we keep it as is.
+
+        betArray.push({
+          betKey: betKey,
+          amount: (bet as any).amount
+        });
       }
+
+      const payload = {
+        bets: betArray
+      };
+
+      // Call backend
+      const result = await gamesService.playRoulette(payload);
       
-      setShowHistory([winningNumber, ...showHistory.slice(0, 9)]);
-      setBets(new Map());
-      
-      // Actualizar balance en el servidor
-      await refreshUser();
+      // Start animation
+      // The backend returns 'result' object which contains winningNumber
+      setWinningBet(result.result.winningNumber.toString());
+      setWheelStart(true);
+
+      // We'll handle the payout and balance update in onSpinningEnd
+
+    } catch (error: any) {
+      console.error('Spin error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Error al girar. Por favor intenta de nuevo.';
+      setMessage(errorMessage);
+      setWheelStart(false);
     }
-    
-    setIsSpinning(false);
   };
 
-  if (loading || !user) return null;
+  const handleEndSpin = (winner: string) => {
+    setWheelStart(false);
+    refreshUser(); // Update balance from backend
+    
+    // We can also calculate local payout if we want to show a message immediately
+    // But the backend already processed it.
+    // We can fetch the last game history to see the payout or trust the user balance update.
+    // For now, let's just show the winner.
+    setMessage(`¡La bola cayó en ${winner}!`);
+    
+    // Clear bets after a delay or let user clear them?
+    // Usually in roulette you might want to re-bet, so we keep them.
+    // But if we want to clear:
+    // clearBets();
+  };
+
+  const handleClear = () => {
+    if (!wheelStart) {
+      clearBets();
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-green-900 to-blue-900 p-8">
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-green-900 via-black to-black text-white pt-32 pb-8 px-4 md:px-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-5xl font-bold text-yellow-400 text-center mb-8 shadow-text">
-          Ruleta Europea
-        </h1>
-        
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Panel izquierdo - Rueda */}
-          <div className="flex-1 flex flex-col items-center">
-            <div className="bg-gradient-to-br from-amber-800 to-amber-900 p-8 rounded-2xl shadow-2xl">
-              <RouletteWheel 
-                isSpinning={isSpinning} 
-                winningNumber={winningNumber}
-                onSpinEnd={onSpinEnd}
-              />
-              
-              {/* Controles */}
-              <div className="mt-6 flex gap-4 justify-center">
-                <button
-                  onClick={() => setSoundEnabled(!soundEnabled)}
-                  className="p-3 bg-blue-600 hover:bg-blue-700 rounded-full transition-colors"
-                >
-                  {soundEnabled ? '🔊' : '🔇'}
-                </button>
-                <button
-                  onClick={() => setShowHistory([])}
-                  className="p-3 bg-gray-600 hover:bg-gray-700 rounded-full transition-colors"
-                  title="Información"
-                >
-                  ℹ️
-                </button>
-              </div>
-
-              {/* Chips de selección */}
-              <div className="mt-6 flex gap-3 justify-center">
-                {CHIP_VALUES.map((value) => (
-                  <button
-                    key={value}
-                    onClick={() => setSelectedChip(value)}
-                    className={`relative w-16 h-16 rounded-full border-4 font-bold text-white transition-all ${
-                      selectedChip === value 
-                        ? 'scale-110 shadow-lg' 
-                        : 'hover:scale-105'
-                    } ${
-                      value === 1 ? 'bg-blue-600 border-blue-800' :
-                      value === 5 ? 'bg-red-600 border-red-800' :
-                      value === 25 ? 'bg-green-600 border-green-800' :
-                      'bg-purple-600 border-purple-800'
-                    }`}
-                  >
-                    ${value}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Historial */}
-            {showHistory.length > 0 && (
-              <div className="mt-6 bg-gray-800 p-4 rounded-lg">
-                <h3 className="text-white font-bold mb-2">Últimos números:</h3>
-                <div className="flex gap-2">
-                  {showHistory.map((num, index) => (
-                    <div
-                      key={index}
-                      className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
-                        num === 0 ? 'bg-green-600' :
-                        RED_NUMBERS.includes(num) ? 'bg-red-600' : 'bg-black'
-                      }`}
-                    >
-                      {num}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+        <header className="flex flex-col md:flex-row justify-between items-center mb-12 gap-6">
+          <div className="text-center md:text-left animate-fade-in-up">
+            <h1 className="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-200 via-yellow-400 to-yellow-600 drop-shadow-2xl tracking-wider mb-2" style={{filter: 'drop-shadow(0 0 10px rgba(234, 179, 8, 0.5))'}}>
+              🎡 RULETA ROYALE
+            </h1>
+            <div className="h-1 w-full bg-gradient-to-r from-transparent via-yellow-500 to-transparent opacity-50"></div>
           </div>
+          
+          <div className="flex items-center gap-6 bg-black/40 p-4 rounded-2xl border border-yellow-500/20 backdrop-blur-md shadow-xl">
+            <button 
+              onClick={() => router.push('/lobby')}
+              className="px-6 py-2 bg-gradient-to-r from-gray-800 to-gray-700 hover:from-gray-700 hover:to-gray-600 text-gray-200 rounded-xl font-bold transition-all border border-gray-600 hover:border-gray-500 shadow-lg text-sm uppercase tracking-wide"
+            >
+              Salir
+            </button>
+          </div>
+        </header>
 
-          {/* Panel derecho - Mesa de apuestas */}
-          <div className="flex-1">
-            <BettingTable 
-              bets={bets}
-              onPlaceBet={placeBet}
-              selectedChip={selectedChip}
+        {message && (
+          <div className="fixed top-20 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-6 py-3 rounded-full shadow-xl z-50 animate-bounce">
+            {message}
+          </div>
+        )}
+
+        <div className="flex flex-col items-center gap-8">
+          
+          {/* Wheel Section */}
+          <div className="transform scale-75 md:scale-100">
+            <RouletteWheel
+              start={wheelStart}
+              winningBet={winningBet as any}
+              onSpinningEnd={handleEndSpin}
             />
-            
-            {/* Panel de control */}
-            <div className="mt-6 bg-gray-800 p-6 rounded-lg shadow-2xl">
-              <div className="flex justify-between items-center mb-4">
-                <div className="text-white">
-                  <span className="text-gray-400">Balance:</span>
-                  <span className="text-2xl font-bold text-yellow-400 ml-2">${balance}</span>
-                </div>
-                <div className="text-white">
-                  <span className="text-gray-400">Apuesta Total:</span>
-                  <span className="text-2xl font-bold text-orange-400 ml-2">${getTotalBet(bets)}</span>
-                </div>
-                <div className="text-white">
-                  <span className="text-gray-400">Última Ganancia:</span>
-                  <span className="text-2xl font-bold text-green-400 ml-2">${lastWin}</span>
-                </div>
-              </div>
-              
-              <div className="flex gap-4">
-                <button
-                  onClick={spin}
-                  disabled={isSpinning || getTotalBet(bets) === 0}
-                  className={`flex-1 py-4 px-6 rounded-lg font-bold text-white text-xl transition-all ${
-                    isSpinning || getTotalBet(bets) === 0
-                      ? 'bg-gray-600 cursor-not-allowed' 
-                      : 'bg-gradient-to-r from-green-500 to-green-700 hover:from-green-600 hover:to-green-800 transform hover:scale-105'
-                  }`}
-                >
-                  {isSpinning ? 'GIRANDO...' : 'GIRAR'}
-                </button>
-                <button
-                  onClick={clearBets}
-                  disabled={isSpinning}
-                  className="py-4 px-6 bg-red-600 hover:bg-red-700 rounded-lg font-bold text-white transition-colors disabled:bg-gray-600"
-                >
-                  LIMPIAR
-                </button>
-              </div>
-              
-              {message && (
-                <div className={`mt-4 p-3 rounded-lg text-center font-bold ${
-                  message.includes('Ganaste') 
-                    ? 'bg-green-600 text-white' 
-                    : 'bg-yellow-600 text-gray-900'
-                }`}>
-                  {message}
-                </div>
-              )}
+          </div>
+
+          {/* Controls */}
+          <div className="flex gap-4 items-center bg-gray-800 p-4 rounded-lg shadow-lg">
+            <div className="text-xl font-bold">
+              Apuesta Total: <span className="text-yellow-400">${total}</span>
+            </div>
+            <button
+              onClick={handleClear}
+              disabled={wheelStart || total === 0}
+              className="px-6 py-2 bg-red-600 hover:bg-red-500 text-white rounded font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              BORRAR
+            </button>
+            <button
+              onClick={handleSpin}
+              disabled={wheelStart || total === 0}
+              className="px-8 py-2 bg-yellow-500 hover:bg-yellow-400 text-black rounded font-bold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg transform active:scale-95 transition-all"
+            >
+              {wheelStart ? 'GIRANDO...' : 'GIRAR'}
+            </button>
+          </div>
+
+          {/* Table Section */}
+          <div className="w-full overflow-x-auto bg-gradient-to-br from-green-800 to-green-950 p-8 rounded-xl border-8 border-yellow-800/50 shadow-[0_0_50px_rgba(0,0,0,0.5),inset_0_0_60px_rgba(0,0,0,0.3)] relative backdrop-blur-sm">
+            <div className="min-w-[800px] flex flex-col items-center relative z-10">
+              <RouletteTable 
+                chips={chipsMap} 
+                bets={bets} 
+                onBet={onBet(selectedChip)} 
+                readOnly={wheelStart} 
+              />
             </div>
           </div>
+
+          {/* Chips Selection */}
+          <div className="bg-gray-800 p-4 rounded-full shadow-lg">
+            <ChipList
+              chips={chipsMap}
+              selectedChip={selectedChip}
+              onChipPressed={setSelectedChip} 
+            />
+          </div>
+
         </div>
       </div>
-
-      <style jsx>{`
-        .shadow-text {
-          text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-        }
-        
-        .clip-path-triangle {
-          clip-path: polygon(20% 0%, 80% 0%, 50% 100%);
-        }
-      `}</style>
     </div>
   );
 }

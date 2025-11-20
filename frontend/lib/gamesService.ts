@@ -7,10 +7,7 @@ export const gamesService = {
   },
 
   async playRoulette(betData: { 
-    gameType: string;
-    betType: string;
-    value?: any;
-    amount: number;
+    bets: Array<{ betKey: string; amount: number }>
   }) {
     const response = await api.post('/games/roulette/play', betData);
     return response.data;
