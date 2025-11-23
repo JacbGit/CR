@@ -144,7 +144,7 @@ export default function BingoPage() {
             ? `¡Completaste ${allCompletedPatterns.length} patrones!`
             : `Patrón: ${PATTERN_INFO[selectedPattern].name}`;
           
-          setMessage(`🎉 ¡BINGO! ${patternsText} - Ganaste $${winAmount.toFixed(2)} en ${balls.length} bolas`);
+          setMessage(`🎉 ¡BINGO! - Ganaste $${winAmount.toFixed(2)} en ${balls.length} bolas`);
         } else {
           setMessage(`❌ No completaste el patrón "${PATTERN_INFO[selectedPattern].name}" en 75 bolas. ¡Intenta de nuevo!`);
         }

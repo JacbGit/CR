@@ -30,6 +30,14 @@ const games = [
     path: '/game/slots',
     color: 'from-yellow-600 to-yellow-900'
   },
+  {
+    id: 'bingo',
+    name: 'Bingo 75',
+    icon: '🎱', // O puedes usar '🎱', '♦️'
+    description: 'Rellena tu cartón y grita ¡BINGO! El juego clásico con un premio gordo.',
+    path: '/game/bingo',
+    color: 'from-blue-600 to-indigo-900' // Usamos un degradado azul/morado
+  },
 ];
 
 export default function LobbyPage() {
