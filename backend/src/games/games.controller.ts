@@ -13,6 +13,7 @@ import {
   SlotsPlayDto,
   PokerPlayDto,
   BlackjackActionDto,
+  BingoPlayDto,
 } from './dto/game.dto';
 import { RoulettePlayDto } from './roulette/roulette.dto';
 
@@ -43,6 +44,11 @@ export class GamesController {
   @Post('blackjack/action')
   async blackjackAction(@Request() req, @Body() actionDto: BlackjackActionDto) {
     return await this.gamesService.blackjackAction(req.user.userId, actionDto);
+  }
+
+  @Post('bingo/play')
+  async playBingo(@Request() req, @Body() playDto: BingoPlayDto) {
+    return await this.gamesService.playBingo(req.user.userId, playDto);
   }
 
   @Get('stats')

@@ -31,6 +31,15 @@ export const gamesService = {
     return response.data;
   },
 
+  async playBingo(betData: {
+    amount: number;
+    pattern: string;
+    customCard?: number[];
+  }) {
+    const response = await api.post('/games/bingo/play', betData);
+    return response.data;
+  },
+
   async getHistory() {
     const response = await api.get('/game-history');
     return response.data;

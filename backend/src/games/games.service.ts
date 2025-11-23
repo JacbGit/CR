@@ -10,10 +10,14 @@ import {
   SlotsPlayDto,
   PokerPlayDto,
   BlackjackActionDto,
+  BingoPlayDto,
 } from './dto/game.dto';
 import { RoulettePlayDto } from './roulette/roulette.dto';
 import { RouletteLogic } from './roulette/roulette.logic';
 import { RED_NUMBERS, BLACK_NUMBERS } from './roulette/roulette.constants';
+import { BingoLogic } from './bingo/bingo.logic';
+import { BingoPattern } from './bingo/bingo.constants';
+
 
 @Injectable()
 export class GamesService {
@@ -676,6 +680,121 @@ export class GamesService {
           hand,
           handRank,
           multiplier,
+        },
+        betAmount: playDto.amount,
+        winAmount,
+        newBalance: balanceAfter,
+      };
+    });
+  }
+
+  // ========== BINGO ==========
+  // Agregar este método al games.service.ts, después de los otros juegos
+  // También agregar los imports necesarios al inicio del archivo:
+  // import { BingoLogic } from './bingo/bingo.logic';
+  // import { BingoPattern } from './bingo/bingo.constants';
+  // import { BingoPlayDto } from './dto/game.dto';
+
+  async playBingo(userId: string, playDto: BingoPlayDto) {
+    return await this.dataSource.transaction(async (manager) => {
+      const user = await manager.findOne(User, { where: { id: userId } });
+      
+      if (user.balance < playDto.amount) {
+        throw new BadRequestException('Saldo insuficiente');
+      }
+
+      // Generar o validar el cartón
+      let card: number[];
+      if (playDto.customCard) {
+        const validation = BingoLogic.validateCard(playDto.customCard);
+        if (!validation.valid) {
+          throw new BadRequestException(validation.error);
+        }
+        card = playDto.customCard;
+      } else {
+        card = BingoLogic.generateCard();
+      }
+
+      // Jugar el bingo (sortear bolas hasta completar el patrón o máximo 75 bolas)
+      const pattern = playDto.pattern as BingoPattern;
+      const { drawnBalls, markedPositions, completedPattern, ballsDrawn } = 
+        BingoLogic.drawBalls(card, pattern, 75);
+
+      // Calcular ganancias
+      const winAmount = BingoLogic.calculateWinnings(
+        playDto.amount,
+        pattern,
+        ballsDrawn,
+        completedPattern
+      );
+
+      const won = completedPattern && winAmount > 0;
+      const balanceBefore = parseFloat(user.balance.toString());
+      const balanceAfter = balanceBefore - playDto.amount + winAmount;
+
+      user.balance = balanceAfter;
+      await manager.save(user);
+
+      // Transacción de apuesta
+      const betTransaction = manager.create(Transaction, {
+        userId,
+        type: TransactionType.BET,
+        amount: -playDto.amount,
+        balanceBefore,
+        balanceAfter: balanceBefore - playDto.amount,
+        status: TransactionStatus.COMPLETED,
+        gameType: GameType.BINGO,
+      });
+      await manager.save(betTransaction);
+
+      // Si ganó, registrar transacción de ganancia
+      if (won) {
+        const winTransaction = manager.create(Transaction, {
+          userId,
+          type: TransactionType.WIN,
+          amount: winAmount,
+          balanceBefore: balanceBefore - playDto.amount,
+          balanceAfter,
+          status: TransactionStatus.COMPLETED,
+          gameType: GameType.BINGO,
+        });
+        await manager.save(winTransaction);
+      }
+
+      // Obtener todos los patrones completados (puede completar múltiples)
+      const allCompletedPatterns = BingoLogic.getCompletedPatterns(markedPositions);
+
+      // Registrar historial
+      const gameHistory = manager.create(GameHistory, {
+        userId,
+        gameType: GameType.BINGO,
+        betAmount: playDto.amount,
+        winAmount,
+        result: won ? GameResult.WIN : GameResult.LOSS,
+        balanceBefore,
+        balanceAfter,
+        gameData: {
+          card,
+          pattern,
+          drawnBalls,
+          markedPositions,
+          ballsDrawn,
+          completedPattern,
+          allCompletedPatterns,
+        },
+      });
+      await manager.save(gameHistory);
+
+      return {
+        result: {
+          won,
+          card,
+          pattern,
+          drawnBalls,
+          markedPositions,
+          ballsDrawn,
+          completedPattern,
+          allCompletedPatterns,
         },
         betAmount: playDto.amount,
         winAmount,

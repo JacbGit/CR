@@ -14,6 +14,7 @@ export enum GameType {
   SLOTS = 'slots',
   BLACKJACK = 'blackjack',
   DICE = 'dice',
+  BINGO = 'bingo',
 }
 
 export enum GameResult {

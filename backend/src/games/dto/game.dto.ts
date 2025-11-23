@@ -56,3 +56,19 @@ export class SlotsPlayDto extends PlaceBetDto {
   @IsNumber()
   lines?: number; // número de líneas a apostar (1-9)
 }
+
+//Bingo
+export class BingoPlayDto {
+  @IsNumber()
+  @Min(1)
+  amount: number;
+
+  @IsString()
+  pattern: string; // 'line_horizontal', 'line_vertical', 'line_diagonal', 'four_corners', 'x_pattern', 'full_card'
+
+  @IsOptional()
+  @IsArray()
+  @IsNumber({}, { each: true })
+  customCard?: number[];
+}
+
