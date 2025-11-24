@@ -14,6 +14,7 @@ import {
   PokerPlayDto,
   BlackjackActionDto,
   BingoPlayDto,
+  WheelPlayDto,
 } from './dto/game.dto';
 import { RoulettePlayDto } from './roulette/roulette.dto';
 
@@ -50,6 +51,12 @@ export class GamesController {
   async playBingo(@Request() req, @Body() playDto: BingoPlayDto) {
     return await this.gamesService.playBingo(req.user.userId, playDto);
   }
+
+  @Post('wheel/play')
+  async playWheel(@Request() req, @Body() playDto: WheelPlayDto) {
+    return await this.gamesService.playWheel(req.user.userId, playDto);
+  }
+
 
   @Get('stats')
   async getStats(@Request() req) {

@@ -68,7 +68,9 @@ export default function Home() {
             {[
               { icon: '🎡', title: 'Ruleta', desc: 'Prueba tu suerte en nuestra ruleta europea y americana.' },
               { icon: '🎰', title: 'Slots', desc: 'Cientos de máquinas tragamonedas con jackpots increíbles.' },
-              { icon: '🎲', title: 'Dados', desc: 'La emoción de los dados en tiempo real.' }
+              { icon: '🎲', title: 'Dados', desc: 'La emoción de los dados en tiempo real.' },
+              { icon: '🎱', title: 'Bingo 75', desc: 'Rellena tu cartón y grita ¡BINGO!' },
+              { icon: '🍀', title: 'Rueda de la Fortuna', desc: 'Gira la gran rueda y gana premios increíbles.' }
             ].map((game, i) => (
               <div key={i} className="p-8 rounded-3xl bg-gradient-to-b from-gray-800/50 to-gray-900/50 border border-white/5 hover:border-yellow-500/30 transition-all group backdrop-blur-sm hover:bg-gray-800/80 hover:-translate-y-2 duration-300">
                 <div className="text-6xl mb-6 group-hover:scale-110 transition-transform duration-300 drop-shadow-lg">{game.icon}</div>

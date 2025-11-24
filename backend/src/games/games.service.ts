@@ -11,12 +11,14 @@ import {
   PokerPlayDto,
   BlackjackActionDto,
   BingoPlayDto,
+  WheelPlayDto,
 } from './dto/game.dto';
 import { RoulettePlayDto } from './roulette/roulette.dto';
 import { RouletteLogic } from './roulette/roulette.logic';
 import { RED_NUMBERS, BLACK_NUMBERS } from './roulette/roulette.constants';
 import { BingoLogic } from './bingo/bingo.logic';
 import { BingoPattern } from './bingo/bingo.constants';
+import { WheelLogic } from './wheel/wheel.logic';
 
 
 @Injectable()
@@ -802,6 +804,90 @@ export class GamesService {
       };
     });
   }
+
+  async playWheel(userId: string, playDto: WheelPlayDto) {
+    return await this.dataSource.transaction(async (manager) => {
+      const user = await manager.findOne(User, { where: { id: userId } });
+      
+      if (user.balance < playDto.amount) {
+        throw new BadRequestException('Saldo insuficiente');
+      }
+
+      // Girar la rueda
+      const { segment, rotation } = WheelLogic.spin();
+      
+      // Calcular ganancias
+      const winAmount = WheelLogic.calculateWinnings(playDto.amount, segment.multiplier);
+      const netProfit = winAmount - playDto.amount;
+
+      const balanceBefore = parseFloat(user.balance.toString());
+      const balanceAfter = balanceBefore - playDto.amount + winAmount;
+
+      user.balance = balanceAfter;
+      await manager.save(user);
+
+      // Transacción de apuesta
+      const betTransaction = manager.create(Transaction, {
+        userId,
+        type: TransactionType.BET,
+        amount: -playDto.amount,
+        balanceBefore,
+        balanceAfter: balanceBefore - playDto.amount,
+        status: TransactionStatus.COMPLETED,
+        gameType: GameType.WHEEL,
+      });
+      await manager.save(betTransaction);
+
+      // Transacción de ganancia
+      if (winAmount > 0) {
+        const winTransaction = manager.create(Transaction, {
+          userId,
+          type: TransactionType.WIN,
+          amount: winAmount,
+          balanceBefore: balanceBefore - playDto.amount,
+          balanceAfter,
+          status: TransactionStatus.COMPLETED,
+          gameType: GameType.WHEEL,
+        });
+        await manager.save(winTransaction);
+      }
+
+      // Registrar historial
+      const gameHistory = manager.create(GameHistory, {
+        userId,
+        gameType: GameType.WHEEL,
+        betAmount: playDto.amount,
+        winAmount,
+        result: netProfit > 0 ? GameResult.WIN : netProfit === 0 ? GameResult.DRAW : GameResult.LOSS,
+        balanceBefore,
+        balanceAfter,
+        gameData: {
+          segmentId: segment.id,
+          multiplier: segment.multiplier,
+          rotation,
+          label: segment.label,
+        },
+      });
+      await manager.save(gameHistory);
+
+      return {
+        result: {
+          segment: {
+            id: segment.id,
+            multiplier: segment.multiplier,
+            label: segment.label,
+            color: segment.color,
+          },
+          rotation,
+        },
+        betAmount: playDto.amount,
+        winAmount,
+        netProfit,
+        newBalance: balanceAfter,
+      };
+    });
+  }
+
 
   // ========== Métodos Helper para Blackjack ==========
   private createDeck(): string[] {

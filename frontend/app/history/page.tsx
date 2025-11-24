@@ -95,7 +95,8 @@ export default function HistoryPage() {
                         {item.gameType === 'roulette' && '🎡 Ruleta'}
                         {item.gameType === 'slots' && '🎰 Slots'}
                         {item.gameType === 'dice' && '🎲 Dados'}
-                        {item.gameType === 'bingo' && '🎱 Bingo'}
+                        {item.gameType === 'bingo' && '🎱 '}
+                        {item.gameType === 'wheel' && '🍀 '}
                         {!['roulette', 'slots', 'dice'].includes(item.gameType) && item.gameType}
                       </td>
                       <td className="px-6 py-4 text-gray-300 font-mono">${Number(item.betAmount).toFixed(2)}</td>

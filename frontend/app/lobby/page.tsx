@@ -38,6 +38,14 @@ const games = [
     path: '/game/bingo',
     color: 'from-blue-600 to-indigo-900' // Usamos un degradado azul/morado
   },
+  { 
+    id: 'wheel-of-fortune',
+    name: 'Rueda de la Fortuna',
+    icon: '🍀', // Usando el trébol
+    description: 'Gira la gran rueda y gana premios increíbles. ¡La suerte está echada!',
+    path: '/game/wheel',
+    color: 'from-purple-600 to-pink-900' 
+  },
 ];
 
 export default function LobbyPage() {

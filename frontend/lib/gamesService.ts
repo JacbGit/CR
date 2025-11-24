@@ -40,6 +40,13 @@ export const gamesService = {
     return response.data;
   },
 
+  async playWheel(betData: {
+    amount: number;
+  }) {
+    const response = await api.post('/games/wheel/play', betData);
+    return response.data;
+  },
+
   async getHistory() {
     const response = await api.get('/game-history');
     return response.data;

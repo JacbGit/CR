@@ -72,3 +72,9 @@ export class BingoPlayDto {
   customCard?: number[];
 }
 
+//Wheel
+export class WheelPlayDto {
+  @IsNumber()
+  @Min(1)
+  amount: number;
+}
