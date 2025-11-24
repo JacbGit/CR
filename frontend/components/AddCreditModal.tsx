@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { soundManager } from '@/lib/soundManager';
 import { useAuth } from '@/context/AuthContext';
+import api from '@/lib/api';
 
 interface AddCreditModalProps {
   isOpen: boolean;
@@ -22,24 +23,16 @@ export default function AddCreditModal({ isOpen, onClose }: AddCreditModalProps)
     soundManager.playClickSound();
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/transactions/deposit`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({ amount: creditAmount }),
-      });
-
-      if (!response.ok) throw new Error('Error al agregar crédito');
+      await api.post('/transactions/deposit', { amount: creditAmount });
 
       await refreshUser();
       onClose();
       soundManager.playMoneyFall();
       alert(`¡Crédito agregado exitosamente! +$${creditAmount}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error:', error);
-      alert('Error al agregar crédito');
+      const message = error.response?.data?.message || 'Error al agregar crédito';
+      alert(message);
     }
   };
 
