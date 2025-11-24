@@ -28,7 +28,7 @@ export class TransactionsController {
 
   @Post('deposit')
   async deposit(@Request() req, @Body() body: { amount: number }) {
-    return await this.transactionsService.deposit(req.user.userId, body.amount);
+    return await this.transactionsService.deposit(req.user.userId, Number(body.amount));
   }
 
   @Get(':id')
