@@ -5,20 +5,19 @@ import { useRouter } from 'next/navigation';
 import { gamesService } from '@/lib/gamesService';
 import { useAuth } from '@/context/AuthContext';
 
-// Configuración de la rueda (debe coincidir con el backend)
 const WHEEL_SEGMENTS = [
-  { id: 0, multiplier: 1.2, color: '#3B82F6', label: '1.2x' },
-  { id: 1, multiplier: 1.5, color: '#10B981', label: '1.5x' },
-  { id: 2, multiplier: 2, color: '#F59E0B', label: '2x' },
-  { id: 3, multiplier: 1.2, color: '#3B82F6', label: '1.2x' },
-  { id: 4, multiplier: 3, color: '#8B5CF6', label: '3x' },
-  { id: 5, multiplier: 1.5, color: '#10B981', label: '1.5x' },
-  { id: 6, multiplier: 5, color: '#EC4899', label: '5x' },
-  { id: 7, multiplier: 1.2, color: '#3B82F6', label: '1.2x' },
-  { id: 8, multiplier: 2, color: '#F59E0B', label: '2x' },
-  { id: 9, multiplier: 10, color: '#EF4444', label: '10x' },
-  { id: 10, multiplier: 1.5, color: '#10B981', label: '1.5x' },
-  { id: 11, multiplier: 50, color: '#FCD34D', label: '50x' },
+  { id: 0, multiplier: 1.2, probability: 15, color: '#3B82F6', label: '1.2x' },
+  { id: 1, multiplier: 0.5, probability: 20, color: '#6B7280', label: '0.5x' },
+  { id: 2, multiplier: 2, probability: 12, color: '#F59E0B', label: '2x' },
+  { id: 3, multiplier: 0, probability: 15, color: '#1F2937', label: '0x' },
+  { id: 4, multiplier: 3, probability: 10, color: '#8B5CF6', label: '3x' },
+  { id: 5, multiplier: 1.5, probability: 12, color: '#10B981', label: '1.5x' },
+  { id: 6, multiplier: 5, probability: 5, color: '#EC4899', label: '5x' },
+  { id: 7, multiplier: 0.8, probability: 18, color: '#9CA3AF', label: '0.8x' },
+  { id: 8, multiplier: 2, probability: 10, color: '#F59E0B', label: '2x' },
+  { id: 9, multiplier: 10, probability: 3, color: '#EF4444', label: '10x' },
+  { id: 10, multiplier: 1.5, probability: 8, color: '#10B981', label: '1.5x' },
+  { id: 11, multiplier: 50, probability: 1, color: '#FCD34D', label: '50x' },
 ];
 
 export default function WheelOfFortune() {
@@ -36,6 +35,11 @@ export default function WheelOfFortune() {
   } | null>(null);
   const [message, setMessage] = useState('');
 
+  const [mounted, setMounted] = useState(false); 
+  useEffect(() => {
+    setMounted(true); 
+  }, []);
+
   useEffect(() => {
     if (user) {
       setBalance(Number(user.balance));
@@ -52,16 +56,26 @@ export default function WheelOfFortune() {
     try {
       const response = await gamesService.playWheel({ amount: betAmount });
       
-      console.log('Respuesta del backend:', response);
+      console.log('=== DEBUG RUEDA ===');
+      console.log('Respuesta completa:', response);
+      console.log('Segmento ganador ID:', response.result.segment.id);
+      console.log('Rotación del backend:', response.result.rotation);
       
       const winningSegmentId = response.result.segment.id;
       const selectedSegment = WHEEL_SEGMENTS.find(s => s.id === winningSegmentId) || WHEEL_SEGMENTS[0];
       
-      const finalRotation = rotation + response.result.rotation;
-      setRotation(finalRotation);
+      // ✅ SOLUCIÓN 1: Resetear primero a 0, luego aplicar nueva rotación
+      setRotation(0);
+      
+      // Pequeño delay para que el navegador registre el reset
+      setTimeout(() => {
+        const newRotation = response.result.rotation;
+        console.log('Nueva rotación (sin acumular):', newRotation);
+        console.log('==================');
+        setRotation(newRotation);
+      }, 50);
 
       setTimeout(() => {
-        // ✅ USAR DATOS DEL BACKEND
         const winAmount = response.winAmount;
         const netProfit = response.netProfit;
         const newBalance = response.newBalance;
@@ -73,16 +87,22 @@ export default function WheelOfFortune() {
           netProfit,
         });
 
-        if (selectedSegment.multiplier >= 50) {
-          setMessage(`🎰💰 ¡JACKPOT! ${selectedSegment.label} - Ganaste $${winAmount.toFixed(2)}`);
-        } else if (selectedSegment.multiplier >= 10) {
-          setMessage(`🎉 ¡GRAN PREMIO! ${selectedSegment.label} - Ganaste $${winAmount.toFixed(2)}`);
+        const multiplier = selectedSegment.multiplier;
+        
+        if (multiplier === 0) {
+            setMessage(`💀 ¡K.O.! ${selectedSegment.label} - Perdiste la apuesta ($${betAmount.toFixed(2)})`);
+        } else if (multiplier < 1) {
+            setMessage(`📉 Perdiste ${selectedSegment.label} - Pérdida Neta: $${Math.abs(netProfit).toFixed(2)}`);
+        } else if (multiplier >= 50) {
+            setMessage(`🎰💰 ¡JACKPOT! ${selectedSegment.label} - Ganancia Neta: +$${netProfit.toFixed(2)}`);
+        } else if (multiplier >= 10) {
+            setMessage(`🎉 ¡GRAN PREMIO! ${selectedSegment.label} - Ganancia Neta: +$${netProfit.toFixed(2)}`);
         } else if (netProfit > 0) {
-          setMessage(`✅ ¡Ganaste! ${selectedSegment.label} - Ganaste $${winAmount.toFixed(2)}`);
+            setMessage(`✅ ¡Ganaste! ${selectedSegment.label} - Ganancia Neta: +$${netProfit.toFixed(2)}`);
         } else if (netProfit === 0) {
-          setMessage(`🤝 Empate - Recuperaste tu apuesta`);
+            setMessage(`🤝 Sin ganancia ni pérdida - ${selectedSegment.label}`);
         } else {
-          setMessage(`${selectedSegment.label} - Ganaste $${winAmount.toFixed(2)}`);
+            setMessage(`😢 Perdiste ${selectedSegment.label} - Pérdida: $${Math.abs(netProfit).toFixed(2)}`);
         }
 
         setIsSpinning(false);
@@ -99,34 +119,43 @@ export default function WheelOfFortune() {
 
   const betPresets = [10, 25, 50, 100, 250];
 
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-pink-900 to-red-900 text-white pt-32 pb-8 px-4 md:px-8 flex items-center justify-center">
+        <div className="text-2xl font-bold text-yellow-400">Cargando...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-pink-900 to-red-900 text-white pt-32 pb-8 px-4 md:px-8">
       <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-12">
-          <h1 className="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-yellow-400 to-yellow-600 mb-4">
+        {/* ✅ Header horizontal: Título a la izquierda, botón a la derecha */}
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-yellow-400 to-yellow-600">
             🎡 RUEDA DE LA FORTUNA
           </h1>
-          <div className="text-2xl font-bold text-yellow-400">
-            Balance: ${balance.toFixed(2)}
-          </div>
           <button 
             onClick={() => router.push('/lobby')}
-            className="mt-4 px-6 py-2 bg-gradient-to-r from-gray-800 to-gray-700 hover:from-gray-700 hover:to-gray-600 text-gray-200 rounded-xl font-bold transition-all border border-gray-600 hover:border-gray-500 shadow-lg text-sm uppercase tracking-wide"
+            className="px-8 py-3 bg-gray-950 hover:bg-black text-white rounded-lg font-bold transition-all border-2 border-gray-800 hover:border-gray-700 shadow-xl text-base uppercase tracking-wider"
           >
-            ← Volver al Lobby
+            SALIR
           </button>
         </div>
 
-        {message && (
-          <div className={`text-center mb-8 py-4 px-6 rounded-full font-bold text-xl ${
-            result && result.netProfit > betAmount ? 'bg-yellow-500' : 
-            result && result.netProfit > 0 ? 'bg-green-600' : 'bg-blue-600'
-          } max-w-2xl mx-auto shadow-2xl animate-bounce`}>
-            {message}
-          </div>
-        )}
+        {/* ✅ Mensaje fijo sin animación */}
+        <div className="mb-6 h-24 flex items-center justify-center">
+          {message && (
+            <div className={`text-center py-4 px-8 rounded-2xl font-bold text-xl ${
+              result && result.netProfit > betAmount ? 'bg-yellow-500' : 
+              result && result.netProfit > 0 ? 'bg-green-600' : 'bg-blue-600'
+            } max-w-2xl shadow-2xl`}>
+              {message}
+            </div>
+          )}
+        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
           <div className="space-y-6">
             <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-700 shadow-xl">
               <h3 className="text-2xl font-bold mb-4 text-yellow-400">Apuesta</h3>
@@ -199,7 +228,7 @@ export default function WheelOfFortune() {
                   viewBox="0 0 400 400"
                   className="w-full h-full"
                   style={{
-                    transform: `rotate(${-rotation}deg)`,
+                    transform: `rotate(${rotation}deg)`,
                     transition: isSpinning ? 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)' : 'none',
                   }}
                 >
@@ -213,15 +242,15 @@ export default function WheelOfFortune() {
                     const startRad = (startAngle * Math.PI) / 180;
                     const endRad = (endAngle * Math.PI) / 180;
                     
-                    const x1 = 200 + 200 * Math.cos(startRad);
-                    const y1 = 200 + 200 * Math.sin(startRad);
-                    const x2 = 200 + 200 * Math.cos(endRad);
-                    const y2 = 200 + 200 * Math.sin(endRad);
+                    const x1 = (200 + 200 * Math.cos(startRad)).toFixed(4);
+                    const y1 = (200 + 200 * Math.sin(startRad)).toFixed(4);
+                    const x2 = (200 + 200 * Math.cos(endRad)).toFixed(4);
+                    const y2 = (200 + 200 * Math.sin(endRad)).toFixed(4);
 
                     const textAngle = startAngle + anglePerSegment / 2;
                     const textRad = (textAngle * Math.PI) / 180;
-                    const textX = 200 + 140 * Math.cos(textRad);
-                    const textY = 200 + 140 * Math.sin(textRad);
+                    const textX = (200 + 140 * Math.cos(textRad)).toFixed(4);
+                    const textY = (200 + 140 * Math.sin(textRad)).toFixed(4);
 
                     return (
                       <g key={segment.id}>
