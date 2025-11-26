@@ -103,3 +103,4 @@ PORT=4000
 ```
 NEXT_PUBLIC_API_URL=http://localhost:4000/api
 ```
+###La unión del equipo es lo más importante en tiempos dificiles
