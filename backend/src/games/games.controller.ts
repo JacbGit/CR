@@ -9,12 +9,14 @@ import {
 import { GamesService } from './games.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import {
-  RoulettePlayDto,
   DicePlayDto,
   SlotsPlayDto,
   PokerPlayDto,
   BlackjackActionDto,
+  BingoPlayDto,
+  WheelPlayDto,
 } from './dto/game.dto';
+import { RoulettePlayDto } from './roulette/roulette.dto';
 
 @Controller('games')
 @UseGuards(JwtAuthGuard)
@@ -44,6 +46,17 @@ export class GamesController {
   async blackjackAction(@Request() req, @Body() actionDto: BlackjackActionDto) {
     return await this.gamesService.blackjackAction(req.user.userId, actionDto);
   }
+
+  @Post('bingo/play')
+  async playBingo(@Request() req, @Body() playDto: BingoPlayDto) {
+    return await this.gamesService.playBingo(req.user.userId, playDto);
+  }
+
+  @Post('wheel/play')
+  async playWheel(@Request() req, @Body() playDto: WheelPlayDto) {
+    return await this.gamesService.playWheel(req.user.userId, playDto);
+  }
+
 
   @Get('stats')
   async getStats(@Request() req) {

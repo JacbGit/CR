@@ -1,13 +1,17 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Transaction } from './transaction.entity';
+import { Repository, DataSource } from 'typeorm';
+import { Transaction, TransactionType, TransactionStatus } from './transaction.entity';
+import { User } from '../users/user.entity';
 
 @Injectable()
 export class TransactionsService {
   constructor(
     @InjectRepository(Transaction)
     private readonly transactionRepository: Repository<Transaction>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async findAll(userId: string, limit: number = 50): Promise<Transaction[]> {
@@ -59,5 +63,38 @@ export class TransactionsService {
       totalWins,
       netProfit: totalWins - totalBets,
     };
+  }
+
+  async deposit(userId: string, amount: number) {
+    if (amount <= 0) {
+      throw new BadRequestException('El monto debe ser mayor a 0');
+    }
+
+    return await this.dataSource.transaction(async (manager) => {
+      const user = await manager.findOne(User, { where: { id: userId } });
+      
+      const balanceBefore = parseFloat(user.balance.toString());
+      const balanceAfter = balanceBefore + amount;
+
+      user.balance = balanceAfter;
+      await manager.save(user);
+
+      const transaction = manager.create(Transaction, {
+        userId,
+        type: TransactionType.DEPOSIT,
+        amount,
+        balanceBefore,
+        balanceAfter,
+        status: TransactionStatus.COMPLETED,
+      });
+      await manager.save(transaction);
+
+      return {
+        message: 'Depósito exitoso',
+        amount,
+        newBalance: balanceAfter,
+        transaction,
+      };
+    });
   }
 }

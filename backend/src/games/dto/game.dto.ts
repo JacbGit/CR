@@ -24,9 +24,13 @@ export class RoulettePlayDto extends PlaceBetDto {
 
 // Dados
 export class DicePlayDto extends PlaceBetDto {
+  @IsString()
+  @IsOptional()
+  betType?: 'pass' | 'dont-pass' | 'come' | 'dont-come' | 'field' | 'any-craps' | 'any-seven'; // Tipo de apuesta en Craps
+
   @IsNumber()
-  @Min(2)
-  prediction: number; // suma predicha de los dados
+  @IsOptional()
+  prediction?: number; // suma predicha de los dados (para compatibilidad)
 }
 
 // Blackjack
@@ -51,4 +55,26 @@ export class SlotsPlayDto extends PlaceBetDto {
   @IsOptional()
   @IsNumber()
   lines?: number; // número de líneas a apostar (1-9)
+}
+
+//Bingo
+export class BingoPlayDto {
+  @IsNumber()
+  @Min(1)
+  amount: number;
+
+  @IsString()
+  pattern: string; // 'line_horizontal', 'line_vertical', 'line_diagonal', 'four_corners', 'x_pattern', 'full_card'
+
+  @IsOptional()
+  @IsArray()
+  @IsNumber({}, { each: true })
+  customCard?: number[];
+}
+
+//Wheel
+export class WheelPlayDto {
+  @IsNumber()
+  @Min(1)
+  amount: number;
 }

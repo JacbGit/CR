@@ -7,7 +7,7 @@ async function bootstrap() {
   
   // Configurar CORS
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
     credentials: true,
   });
 
@@ -23,7 +23,7 @@ async function bootstrap() {
   // Prefijo global para todas las rutas
   app.setGlobalPrefix('api');
 
-  const port = process.env.PORT || 3000;
+  const port = process.env.PORT || 4000;
   await app.listen(port);
   
   console.log(`🎰 Casino Royal Backend corriendo en: http://localhost:${port}`);

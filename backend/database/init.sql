@@ -71,7 +71,7 @@ CREATE INDEX idx_transactions_status ON transactions(status);
 -- TABLA: game_history
 -- Descripción: Almacena el historial de todas las partidas jugadas
 -- ================================================
-CREATE TYPE game_type AS ENUM ('roulette', 'poker', 'slots', 'blackjack', 'dice');
+CREATE TYPE game_type AS ENUM ('roulette', 'poker', 'slots', 'blackjack', 'dice', 'bingo', 'wheel');
 CREATE TYPE game_result AS ENUM ('win', 'loss', 'draw');
 
 CREATE TABLE IF NOT EXISTS game_history (
