@@ -35,14 +35,14 @@ def start_login(context):
 
 @then('Me direcciona a la pagina de login')  # pylint: disable=not-callable
 def check_login(context):
-    """."""
+    """Revisamos que entramos a login"""
     WebDriverWait(context.driver, 1).until(
         EC.url_contains("login")
     )
 
 @when('Lleno los campos "{user}","{password}" para jugar')  # pylint: disable=not-callable
 def start_register_form(context,user,password):
-    """."""
+    """iniciar sesion"""
     context.driver.find_element(By.CSS_SELECTOR, ".w-full:nth-child(2)").click()
     context.driver.find_element(By.CSS_SELECTOR, ".w-full:nth-child(2)").send_keys(user)
     context.driver.find_element(By.CSS_SELECTOR, ".px-4:nth-child(1)").click()
@@ -67,21 +67,20 @@ def check_games(context):
 
 @when('Cliqueo en la ruleta')  # pylint: disable=not-callable
 def start_register_form(context):
-    """."""
-    #.group:nth-child(1) .px-8
+    """cliqueo hacia la ruleta"""
     context.driver.find_element(By.CSS_SELECTOR, ".group:nth-child(1) .px-8").click()
 
 
 @then('Me envia a la pagina de la ruleta')  # pylint: disable=not-callable
 def start_register_form(context):
-    """."""
+    """Entro a la ruleta"""
     WebDriverWait(context.driver, 3).until(
         EC.url_contains("roulette")
     )
 
 @when('Hago mi apuesta y presiono girar')  # pylint: disable=not-callable
 def start_register_form(context):
-    """."""
+    """Apuesta"""
     context.driver.find_element(By.CSS_SELECTOR, ".outside-section:nth-child(3)").click()
     context.driver.find_element(By.CSS_SELECTOR, ".px-8").click()
     time.sleep(10)
@@ -89,7 +88,7 @@ def start_register_form(context):
 #.px-8
 @then('Mi saldo debe cambiar')  # pylint: disable=not-callable
 def start_register_form(context):
-    """."""
+    """Reviso que haya perdido o ganado"""
     balance = context.driver.find_element(
         By.CSS_SELECTOR,
         "span.text-xl.font-black.text-yellow-400.drop-shadow-glow"
