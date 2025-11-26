@@ -1,42 +1,91 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { UsersService } from '../users/users.service';
+import { LoginDto, RegisterDto } from './dto/auth.dto';
+import { User } from '../users/user.entity';
 
 @Injectable()
 export class AuthService {
-    constructor(
-    private usersService: UsersService,
-    private jwtService: JwtService,
-    ) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly jwtService: JwtService,
+  ) {}
 
+  async validateUser(username: string, password: string): Promise<any> {
+    const user = await this.usersService.findByUsername(username);
     
-    async validateUser(username: string, password: string): Promise<any> {
-        const user = await this.usersService.findByUsername(username);
-
-        if (!user) {
-            console.log('Usuario no encontrado');
-            return null;
-        }
-
-        console.log('Usuario encontrado:', user);
-
-        const isPasswordValid = await bcrypt.compare(password, user.Password);
-
-        if (isPasswordValid) {
-            // Excluimos el campo Password antes de devolver el usuario
-            const { Password, ...result } = user;
-            return result;
-        }
-
-        console.log('Contraseña incorrecta');
-        return null;
+    if (!user) {
+      throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    async login(user: any) {
-        const payload = { username: user.Username, sub: user.UserID, UserType: user.UserType };
-        return {
-            access_token: this.jwtService.sign(payload),
-        };
+    if (!user.isActive) {
+      throw new UnauthorizedException('Usuario inactivo');
     }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
+
+    const { password: _, ...result } = user;
+    return result;
+  }
+
+  async login(loginDto: LoginDto) {
+    const user = await this.validateUser(loginDto.username, loginDto.password);
+
+    const payload = {
+      username: user.username,
+      sub: user.id,
+      role: user.role,
+    };
+
+    return {
+      access_token: this.jwtService.sign(payload),
+      user: {
+        id: user.id,
+        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        balance: user.balance,
+        profilePicture: user.profilePicture,
+        role: user.role,
+      },
+    };
+  }
+
+  async register(registerDto: RegisterDto) {
+    const user = await this.usersService.create(registerDto);
+
+    const payload = {
+      username: user.username,
+      sub: user.id,
+      role: user.role,
+    };
+
+    return {
+      access_token: this.jwtService.sign(payload),
+      user: {
+        id: user.id,
+        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        balance: user.balance,
+        profilePicture: user.profilePicture,
+        role: user.role,
+      },
+    };
+  }
+
+  async verifyToken(token: string): Promise<any> {
+    try {
+      return this.jwtService.verify(token);
+    } catch (error) {
+      throw new UnauthorizedException('Token inválido');
+    }
+  }
 }

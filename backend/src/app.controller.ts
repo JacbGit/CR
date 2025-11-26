@@ -6,7 +6,16 @@ export class AppController {
   constructor(private readonly appService: AppService) {}
 
   @Get()
-  getHello(): string {
+  getHello(): object {
     return this.appService.getHello();
+  }
+
+  @Get('health')
+  healthCheck(): object {
+    return {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      service: 'Casino Royal API',
+    };
   }
 }
