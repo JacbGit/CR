@@ -6,13 +6,20 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
   // Configurar CORS
-  const corsOrigin = process.env.CORS_ORIGIN;
-  const origin = corsOrigin && corsOrigin.includes(',') 
-    ? corsOrigin.split(',').map(o => o.trim()) 
-    : corsOrigin || 'http://localhost:3000';
-
   app.enableCors({
-    origin,
+    origin: (requestOrigin, callback) => {
+      const allowedOrigins = process.env.CORS_ORIGIN 
+        ? process.env.CORS_ORIGIN.split(',').map(o => o.trim()) 
+        : ['http://localhost:3000'];
+      
+      // Permitir requests sin origin (como Postman), dominios en lista blanca, o cualquier deploy de Vercel
+      if (!requestOrigin || allowedOrigins.includes(requestOrigin) || requestOrigin.endsWith('.vercel.app')) {
+        callback(null, true);
+      } else {
+        console.log(`🚫 CORS bloqueó origen: ${requestOrigin}`);
+        callback(null, false);
+      }
+    },
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: 'Content-Type, Accept, Authorization',
